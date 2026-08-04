@@ -1,36 +1,56 @@
-'use strict';
+/*
+================================================================================
+LLD: Notification System
+================================================================================
 
-// NotificationSystem
-//
-// 1. Understand the problem, ask clarifying questions
-//
-// 2. List down the functional and non functional requirements
-//
-// functional requirements:
-// 1.
-// 2.
-// 3.
-// 4.
-// 5.
-//
-// Non-functional requirements:
-// 1.
-// 2.
-// 3.
-// 4.
-//
-// 3. Identifying the core entities and Relationship
-//
-// Identifying the Core Entity?
-// Classes, Interfaces, Enums
-//
-// Notification
-// NotificationChannel
-// NotificationTypes
-// ConcreateNotificationChannels{SMS, EMAIL}
-//
-// NotificationService
-// NotificationDispatcher
+Interview walkthrough (kept from the original notes, now answered):
+
+1. Understand the problem, ask clarifying questions.
+2. List the functional and non-functional requirements.
+3. Identify the core entities and relationships.
+
+--------------------------------------------------------------------------
+Functional Requirements:
+--------------------------------------------------------------------------
+    1. Send a notification to a recipient through a specific channel
+       (SMS, EMAIL, SLACK, WHATSAPP).
+    2. New channels can be added without modifying existing channel code
+       (Open/Closed Principle).
+    3. A notification's delivery is tracked through explicit states:
+       PENDING -> SENT, or PENDING -> FAILED after retries are exhausted.
+    4. Transient channel failures are retried a bounded number of times
+       before the notification is marked FAILED.
+
+--------------------------------------------------------------------------
+Non-Functional Requirements:
+--------------------------------------------------------------------------
+    1. Extensibility: adding WhatsApp/Slack/etc. is "write a new class",
+       never "edit the dispatcher's if/else chain".
+    2. Reliability: a flaky channel gets a bounded number of retries, not
+       infinite retries (which could wedge the dispatcher) and not zero
+       retries (which would surface transient blips as hard failures).
+    3. Decoupling: NotificationService (what to send / to whom) knows
+       nothing about HOW a channel delivers a message; NotificationChannel
+       implementations know nothing about retry policy.
+
+--------------------------------------------------------------------------
+Core Entities (Strategy + Registry pattern):
+--------------------------------------------------------------------------
+    NotificationType          -- SMS, EMAIL, SLACK, WHATSAPP
+    NotificationStatus         -- PENDING, SENT, FAILED
+    Notification               -- id, type, recipient, message, status, attempts
+    NotificationChannel        -- strategy interface: send(notification) -> bool
+    Concrete channels          -- SMS/Email/WhatsApp (mock, always succeed),
+                                   Slack (mock, fails a configurable number of
+                                   times first, to exercise the retry path)
+    NotificationDispatcher     -- registry of NotificationType -> NotificationChannel,
+                                   owns the retry loop
+    NotificationService        -- facade: creates a Notification and asks the
+                                   dispatcher to deliver it
+================================================================================
+*/
+
+'use strict';
 
 const NotificationType = Object.freeze({
     SMS: 'SMS',
@@ -39,52 +59,160 @@ const NotificationType = Object.freeze({
     WHATSAPP: 'WHATSAPP',
 });
 
+const NotificationStatus = Object.freeze({
+    PENDING: 'PENDING',
+    SENT: 'SENT',
+    FAILED: 'FAILED',
+});
+
+let notificationIdCounter = 0;
+function nextNotificationId() {
+    notificationIdCounter += 1;
+    return `notif-${notificationIdCounter}`;
+}
+
 class Notification {
-    constructor(type, id, message) {
+    constructor(type, recipient, message) {
+        this.id = nextNotificationId();
         this.type = type;
-        this.id = id;
+        this.recipient = recipient;
         this.message = message;
+        this.status = NotificationStatus.PENDING;
+        this.attempts = 0;
     }
 }
 
 class NotificationChannel {
-    sendNotification(notification) {
-        throw new Error('sendNotification must be implemented by subclass');
+    // Returns true if the channel accepted/delivered the message.
+    send(notification) {
+        throw new Error('send() must be implemented by subclass');
     }
 }
 
-class SMSNotification extends NotificationChannel {
-    sendNotification(notification) {
+class SMSNotificationChannel extends NotificationChannel {
+    send(notification) {
+        console.log(`[SMS] to ${notification.recipient}: ${notification.message}`);
+        return true;
     }
 }
 
-class EmailNotification extends NotificationChannel {
-    sendNotification(notification) {
+class EmailNotificationChannel extends NotificationChannel {
+    send(notification) {
+        console.log(`[EMAIL] to ${notification.recipient}: ${notification.message}`);
+        return true;
     }
 }
 
-class SlackNotification extends NotificationChannel {
-    sendNotification(notification) {
+class WhatsAppNotificationChannel extends NotificationChannel {
+    send(notification) {
+        console.log(`[WHATSAPP] to ${notification.recipient}: ${notification.message}`);
+        return true;
     }
 }
 
-class LLDQuestions {
+// Simulates a channel with a flaky downstream provider: the first
+// `failuresBeforeSuccess` calls fail, after which it starts succeeding.
+// This exists purely to exercise NotificationDispatcher's retry loop
+// deterministically, without relying on randomness.
+class SlackNotificationChannel extends NotificationChannel {
+    constructor(failuresBeforeSuccess) {
+        super();
+        this.remainingFailures = failuresBeforeSuccess;
+    }
+
+    send(notification) {
+        if (this.remainingFailures > 0) {
+            this.remainingFailures -= 1;
+            console.log(`[SLACK] delivery attempt failed (provider timeout) for ${notification.recipient}`);
+            return false;
+        }
+        console.log(`[SLACK] to ${notification.recipient}: ${notification.message}`);
+        return true;
+    }
 }
 
-// Posting Questions
-//     --> go over internet... understand... functional non
-//     Questions
-//
-//     2 Questions Everyday
+class NotificationDispatcher {
+    constructor(maxAttempts) {
+        this.maxAttempts = maxAttempts;
+        this.channels = new Map();
+    }
 
-// Next Class:
+    registerChannel(type, channel) {
+        this.channels.set(type, channel);
+    }
+
+    dispatch(notification) {
+        const channel = this.channels.get(notification.type);
+        if (!channel) {
+            throw new Error(`No channel registered for ${notification.type}`);
+        }
+
+        while (notification.attempts < this.maxAttempts) {
+            notification.attempts += 1;
+            const delivered = channel.send(notification);
+            if (delivered) {
+                notification.status = NotificationStatus.SENT;
+                return;
+            }
+        }
+        notification.status = NotificationStatus.FAILED;
+    }
+}
+
+class NotificationService {
+    constructor(dispatcher) {
+        this.dispatcher = dispatcher;
+        this.notifications = new Map();
+    }
+
+    createAndSend(type, recipient, message) {
+        const notification = new Notification(type, recipient, message);
+        this.notifications.set(notification.id, notification);
+        this.dispatcher.dispatch(notification);
+        return notification;
+    }
+
+    getStatus(notificationId) {
+        return this.notifications.get(notificationId);
+    }
+}
+
+function main() {
+    const dispatcher = new NotificationDispatcher(3);
+    dispatcher.registerChannel(NotificationType.SMS, new SMSNotificationChannel());
+    dispatcher.registerChannel(NotificationType.EMAIL, new EmailNotificationChannel());
+    dispatcher.registerChannel(NotificationType.WHATSAPP, new WhatsAppNotificationChannel());
+    // Fails twice, then succeeds on the 3rd attempt -- within maxAttempts.
+    dispatcher.registerChannel(NotificationType.SLACK, new SlackNotificationChannel(2));
+
+    const service = new NotificationService(dispatcher);
+
+    const sms = service.createAndSend(NotificationType.SMS, '+1-555-0100', 'Your OTP is 482913');
+    const email = service.createAndSend(NotificationType.EMAIL, 'alice@example.com', 'Your order has shipped');
+    const whatsapp = service.createAndSend(NotificationType.WHATSAPP, '+1-555-0200', 'Your table is ready');
+
+    console.log('\n-- Sending a Slack notification through a flaky channel (retries expected) --');
+    const slack = service.createAndSend(NotificationType.SLACK, '#alerts', 'Build #482 failed');
+
+    console.log('\nFinal delivery report:');
+    for (const n of [sms, email, whatsapp, slack]) {
+        console.log(`  ${n.type.padEnd(8)} -> ${n.status.padEnd(6)} (attempts=${n.attempts})`);
+    }
+}
+
+if (require.main === module) {
+    main();
+}
 
 module.exports = {
     NotificationType,
+    NotificationStatus,
     Notification,
     NotificationChannel,
-    SMSNotification,
-    EmailNotification,
-    SlackNotification,
-    LLDQuestions,
+    SMSNotificationChannel,
+    EmailNotificationChannel,
+    WhatsAppNotificationChannel,
+    SlackNotificationChannel,
+    NotificationDispatcher,
+    NotificationService,
 };
