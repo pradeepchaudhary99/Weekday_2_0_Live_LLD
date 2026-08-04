@@ -48,7 +48,10 @@ public class ReadWriteLockDemo {
 
         // 1 writer — watch it wait for ALL readers to finish, then block everyone else
         pool.submit(() -> counter.write(99));
-
+        // 4 readers — watch their timestamps overlap
+        for (int i = 0; i < 4; i++) {
+            pool.submit(counter::read);
+        }
         pool.shutdown();
         pool.awaitTermination(5, TimeUnit.SECONDS);
     }

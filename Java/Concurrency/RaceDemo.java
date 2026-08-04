@@ -12,7 +12,8 @@ public class RaceDemo {
     public static void main(String[] args) throws InterruptedException {
         ExecutorService pool = Executors.newFixedThreadPool(8);
         for (int i = 0; i < 1000; i++) {
-            pool.submit(() -> {
+            pool.submit(
+                () -> {
                 unsafeCounter++;              // NOT atomic — three steps
                 safeCounter.incrementAndGet(); // atomic
             });
