@@ -736,12 +736,16 @@ html[data-theme="dark"] .theme-dot {
 }
 
 .home-cast {
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  justify-content: end;
+  justify-items: center;
+  align-items: end;
+  column-gap: 1.25rem;
+  row-gap: 0.65rem;
   position: relative;
-  min-height: 150px;
+  min-height: 0;
 }
 
 .home-cast-card {
@@ -751,11 +755,11 @@ html[data-theme="dark"] .theme-dot {
   gap: 0.25rem;
   text-align: center;
   animation: floaty 3.6s ease-in-out infinite;
+  z-index: 1;
 }
 
-.home-cast-card:nth-child(2) {
+.home-cast-card.is-jordan {
   animation-delay: 0.45s;
-  margin-bottom: 1.1rem;
 }
 
 .home-cast-card img {
@@ -786,10 +790,10 @@ html[data-theme="dark"] .theme-dot {
 .home-cast-card.is-jordan em { color: var(--warn); }
 
 .home-speech {
-  position: absolute;
-  top: 0.2rem;
-  right: 0.2rem;
-  max-width: 13rem;
+  grid-column: 1 / -1;
+  justify-self: end;
+  position: relative;
+  max-width: 16rem;
   padding: 0.55rem 0.7rem;
   border-radius: 12px 12px 4px 12px;
   background: var(--ink);
@@ -797,6 +801,7 @@ html[data-theme="dark"] .theme-dot {
   font-size: 0.78rem;
   line-height: 1.35;
   box-shadow: var(--shadow);
+  z-index: 0;
 }
 
 html[data-theme="dark"] .home-speech {
@@ -1328,14 +1333,13 @@ html[data-theme="dark"] .btn-primary {
   }
 
   .home-cast {
-    justify-content: flex-start;
-    min-height: auto;
+    justify-content: start;
+    justify-items: start;
   }
 
   .home-speech {
-    position: static;
+    justify-self: start;
     max-width: none;
-    margin-bottom: 0.5rem;
   }
 
   .section-head {
