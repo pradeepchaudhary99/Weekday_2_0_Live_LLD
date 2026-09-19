@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weekday LLD — Low-Level Design Interviews</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#/" aria-label="Weekday LLD home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-text">
+            <strong>Weekday</strong>
+            <em>LLD Studio</em>
+          </span>
+        </a>
+        <div class="sidebar-head">
+          <p class="sidebar-kicker">Curriculum</p>
+          <h2>Low-Level Design</h2>
+          <p class="sidebar-meta"><span id="problemCount">0</span> problems · 5 languages</p>
+        </div>
+        <div class="sidebar-scroll" id="sidebarNav"></div>
+        <div class="sidebar-foot">
+          <button type="button" class="theme-btn" id="themeToggle" aria-label="Toggle theme">
+            <span class="theme-dot" aria-hidden="true"></span>
+            Theme
+          </button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <button type="button" class="icon-btn sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+            ☰
+          </button>
+          <p class="crumb" id="crumb">Overview</p>
+        </header>
+
+        <div class="workspace-body">
+          <main class="main" id="main">
+            <div class="loading">Loading…</div>
+          </main>
+          <aside class="toc" id="toc" hidden>
+            <p class="toc-title">On this page</p>
+            <nav id="tocNav"></nav>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <div class="backdrop" id="backdrop" hidden></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/go/go.min.js"></script>
+    <script src="data/problems.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
